@@ -8,6 +8,6 @@ nav:
   - Arquitetura:
       - Visão geral: 10-architecture/overview.md
       - ADRs: 10-architecture/adr/ADR-0001-docs-as-code.md
-  - Sistema X:
-    - Visão geral: generated/sistemax/index.md
+  - Sistemas: generated/index.md
+
 
