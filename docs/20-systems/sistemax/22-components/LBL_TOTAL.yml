@@ -1,0 +1,17 @@
+id: LBL_TOTAL
+name: Label - Total
+type: label
+status: active
+screens:
+  - TELA_CONTRATO
+
+figma:
+  node_id: "123:2001"
+  name: "lbl_total"
+
+data:
+  field: contrato.total
+  datatype: money
+
+behavior_refs:
+  - UC-011-calcular-total

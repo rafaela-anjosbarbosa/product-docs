@@ -1,0 +1,24 @@
+id: INP_VALOR_MENSAL
+name: Input - Valor Mensal
+type: input
+status: active
+screens:
+  - TELA_CONTRATO
+
+figma:
+  node_id: "123:999"
+  name: "inp_valor_mensal"
+
+data:
+  field: contrato.valorMensal
+  datatype: money
+  required: true
+  format: "R$ #.###,##"
+
+events:
+  - name: onChange
+  - name: onBlur
+
+validations:
+  - ref: RN-012
+  - ref: RF-023

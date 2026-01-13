@@ -1,0 +1,21 @@
+id: RN-012
+name: Valor mensal deve ser maior que zero
+status: active
+domain: contratos
+severity: error
+
+rule:
+  expression: "contrato.valorMensal > 0"
+  description: "O valor mensal deve ser estritamente maior que zero."
+
+message:
+  ref: MSG-VALOR-MENSAL-INVALIDO
+
+applies_to:
+  screens:
+    - TELA_CONTRATO
+  components:
+    - INP_VALOR_MENSAL
+  api:
+    - POST /contratos
+    - PUT /contratos/{id}

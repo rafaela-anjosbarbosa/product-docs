@@ -1,0 +1,10 @@
+messages:
+  - id: MSG-VALOR-MENSAL-INVALIDO
+    text: "Informe um valor mensal válido."
+    type: error
+    audience: user
+
+  - id: MSG-CONTRATO-SALVO
+    text: "Contrato salvo com sucesso."
+    type: success
+    audience: user

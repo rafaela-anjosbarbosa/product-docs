@@ -1,0 +1,31 @@
+id: RF-023
+title: Validar valor mensal
+type: functional
+status: active
+priority: must
+source: negocio
+
+scope:
+  screen: TELA_CONTRATO
+  component: INP_VALOR_MENSAL
+  event: onBlur
+
+behavior:
+  main:
+    - step: Validar se valorMensal > 0
+    - step: Se inválido, bloquear salvamento
+  alternatives:
+    - when: valorMensal <= 0
+      then:
+        - show_message: MSG-VALOR-MENSAL-INVALIDO
+        - set_field_error: INP_VALOR_MENSAL
+
+acceptance_criteria:
+  - "Ao informar valor <= 0, o campo deve ficar inválido e o usuário não consegue salvar."
+  - "Ao informar valor > 0, o erro deve ser removido."
+
+links:
+  rules:
+    - RN-012
+  flows:
+    - UC-010-salvar-contrato
