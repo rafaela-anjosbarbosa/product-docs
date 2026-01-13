@@ -9,10 +9,5 @@ nav:
       - Visão geral: 10-architecture/overview.md
       - ADRs: 10-architecture/adr/ADR-0001-docs-as-code.md
   - Sistema X:
-      - Visão geral: generated/sistemax/index.md
-      - Telas: generated/sistemax/screens/index.md
-      - Componentes: generated/sistemax/components/index.md
-      - Requisitos: generated/sistemax/requirements/index.md
-      - Regras: generated/sistemax/rules/index.md
-      - Fluxos: generated/sistemax/flows/index.md
+    - Visão geral: generated/sistemax/index.md
 
