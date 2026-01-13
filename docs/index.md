@@ -8,4 +8,4 @@ O objetivo é organizar a documentação **funcional e comportamental** do siste
 - fácil de publicar (MkDocs)
 - pronta para automação e IA
 
-Use o módulo **SGN** como exemplo e replique o padrão para outros sistemas.
+Use o **Sistema X** como exemplo e replique o padrão para outros sistemas.
