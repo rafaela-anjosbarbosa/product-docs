@@ -46,17 +46,23 @@ jobs:
           echo "systems=$CHANGED" >> $GITHUB_OUTPUT
           echo "Changed systems: $CHANGED"
 
-      - name: Generate pages from YAML (changed systems)
+      - name: Generate pages from YAML
         run: |
-          if [ -z "${{ steps.changed.outputs.systems }}" ]; then
-            echo "No system changes detected."
+          SYSTEMS="${{ steps.changed.outputs.systems }}"
+
+          if [ -z "$SYSTEMS" ]; then
+            echo "No system changes detected. Regenerating hub only."
+            python tools/generate_pages.py --root docs --system __ALL__ --hub-only
             exit 0
           fi
 
-          for sys in ${{ steps.changed.outputs.systems }}; do
+          for sys in $SYSTEMS; do
             echo "Generating pages for: $sys"
             python tools/generate_pages.py --root docs --system "$sys"
           done
+
+          # Always refresh the global hub
+          python tools/generate_pages.py --root docs --system __ALL__ --hub-only
 
       - name: Lint docs (all systems)
         run: |
