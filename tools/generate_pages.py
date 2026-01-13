@@ -157,4 +157,4 @@ def gen_simple_entity_pages(src_dir: Path, out_dir: Path, title: str, id_key: st
 
         out_path = out_dir / _id / "index.md"
         write(out_path, "\n".join(page).strip() + "\n")
-        index_lines.append(f"- [{]()_
+        index_lines.append(f"- [{_id}](./{_id}/)\n")
