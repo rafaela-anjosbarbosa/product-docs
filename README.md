@@ -1,5 +1,5 @@
 # Product Docs (Docs-as-Code Starter)
-
+teste
 Este repositório é um **starter** para documentação de produto/sistema no estilo **Docs-as-Code** (substituindo o papel do EA em: tela → componente → requisito → regra → fluxo), com:
 - Estrutura de pastas padronizada
 - Templates YAML
