@@ -8,24 +8,43 @@ screens:
     name: Cadastro de Contrato
     purpose: Cadastrar e atualizar contratos.
     figma:
-      url: "https://www.figma.com/file/XXXXX?node-id=123:456"
+      url: "https://figma.com/..."
     runtime:
       url:
         prd: "https://sistema/contratos/cadastro"
+
     components:
-      - id: INP_VALOR_MENSAL
-        name: Valor mensal
-        type: input
+      - id: CMP_CLIENTE
+        name: Cliente
+        type: autocomplete
         runtime:
-          test_id: "input-valor-mensal"
-        rules:
-          - id: RN_VALOR_MAIOR_ZERO
-            name: Valor deve ser > 0
-            expression: "valorMensal > 0"
-            description: "Bloquear salvar quando valorMensal <= 0."
+          test_id: "cliente-autocomplete"
+        requirements:
+          - id: RF_SELECIONAR_CLIENTE
+            name: Selecionar cliente por razão social ou CNPJ
+            rules:
+              - id: RN_SUGGEST_CLIENTE
+                name: Sugestão por razão social ou CNPJ
+              - id: RN_CLIENTE_OBRIGATORIO
+                name: Campo cliente obrigatório
+
+      - id: CMP_PERIODO
+        name: Período do contrato
+        type: date-range
+        requirements:
+          - id: RF_VALIDAR_PERIODO
+            name: Data fim não pode ser menor que data início
+            rules:
+              - id: RN_DATA_FIM_MAIOR_IGUAL_INICIO
+                name: Validar data fim >= data início
+
+      - id: CMP_VALOR
+        name: Valor do contrato
+        type: currency
         requirements:
           - id: RF_VALIDAR_VALOR
-            name: Validar valor mensal
-            acceptance_criteria:
-              - "Bloquear salvar se valorMensal <= 0"
-              - "Exibir mensagem RN_VALOR_MAIOR_ZERO"
+            name: Valor deve ser maior que zero
+            rules:
+              - id: RN_VALOR_MAIOR_ZERO
+                name: Validar valor > 0
+
