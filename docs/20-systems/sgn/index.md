@@ -1,4 +1,4 @@
-# SGN
+# Sistema x (exemplo)
 
 Este é o módulo de exemplo.
 
