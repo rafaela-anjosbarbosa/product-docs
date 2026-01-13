@@ -343,27 +343,16 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
 # ----------------------------
 # Main
 # ----------------------------
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default="docs")
-    ap.add_argument("--system", required=True, help="folder name in docs/20-systems/<system>")
-    args = ap.parse_args()
-
-    root = Path(args.root)
-    system_root = root / "20-systems" / args.system
-    out_root = root / "generated" / args.system
-
+def generate_for_system(root: Path, system: str):
+    system_root = root / "20-systems" / system
+    out_root = root / "generated" / system
     clear_dir(out_root)
-
     out_root.mkdir(parents=True, exist_ok=True)
-    write(out_root / "index.md", f"# {args.system}\n\n## Módulos\n\n_(carregando)_\n")
 
     modules_dir = system_root / "modules"
     module_files = sorted(modules_dir.glob("*/module.yml")) if modules_dir.exists() else []
 
-    # System landing: list modules
-    hub: List[str] = [f"# {args.system}\n\n", "## Módulos\n\n"]
-
+    hub: List[str] = [f"# {system}\n\n", "## Módulos\n\n"]
     if not module_files:
         hub.append("_(nenhum)_\n")
     else:
@@ -375,12 +364,46 @@ def main():
             mod_name = mod.get("name", slug)
 
             hub.append(f"- [{mod_id} — {mod_name}](./modules/{slug}/)\n")
-
-            # generate module
-            render_module_pages(args.system, slug, data, out_root)
+            render_module_pages(system, slug, data, out_root)
 
     write(out_root / "index.md", "".join(hub))
 
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--root", default="docs")
+    ap.add_argument("--system", default="__ALL__", help="use __ALL__ to generate all systems")
+    args = ap.parse_args()
+
+    root = Path(args.root)
+    generated_root = root / "generated"
+    generated_root.mkdir(parents=True, exist_ok=True)
+
+    # Generate all systems (no hardcoding)
+    systems = []
+    systems_root = root / "20-systems"
+    if systems_root.exists():
+        for d in sorted(systems_root.iterdir()):
+            if d.is_dir():
+                systems.append(d.name)
+
+    if args.system != "__ALL__":
+        # allow single system run (still no hardcoding)
+        systems = [args.system]
+
+    # generate per system
+    for sys in systems:
+        generate_for_system(root, sys)
+
+    # global hub
+    hub_lines = ["# Sistemas\n\n"]
+    if not systems:
+        hub_lines.append("_(nenhum)_\n")
+    else:
+        for sys in systems:
+            hub_lines.append(f"- [{sys}](./{sys}/)\n")
+
+    write(generated_root / "index.md", "".join(hub_lines))
 
 if __name__ == "__main__":
     main()
