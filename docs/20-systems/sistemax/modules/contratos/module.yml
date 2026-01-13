@@ -1,0 +1,31 @@
+module:
+  id: MOD_CONTRATOS
+  name: Contratos
+  owner: squad-melhorias
+
+screens:
+  - id: TELA_CONTRATO
+    name: Cadastro de Contrato
+    purpose: Cadastrar e atualizar contratos.
+    figma:
+      url: "https://www.figma.com/file/XXXXX?node-id=123:456"
+    runtime:
+      url:
+        prd: "https://sistema/contratos/cadastro"
+    components:
+      - id: INP_VALOR_MENSAL
+        name: Valor mensal
+        type: input
+        runtime:
+          test_id: "input-valor-mensal"
+        rules:
+          - id: RN_VALOR_MAIOR_ZERO
+            name: Valor deve ser > 0
+            expression: "valorMensal > 0"
+            description: "Bloquear salvar quando valorMensal <= 0."
+        requirements:
+          - id: RF_VALIDAR_VALOR
+            name: Validar valor mensal
+            acceptance_criteria:
+              - "Bloquear salvar se valorMensal <= 0"
+              - "Exibir mensagem RN_VALOR_MAIOR_ZERO"
