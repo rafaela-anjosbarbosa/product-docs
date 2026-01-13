@@ -7,6 +7,9 @@ from typing import Any, Dict, List
 import yaml
 
 
+# ----------------------------
+# Utils
+# ----------------------------
 def load_yaml(p: Path) -> Dict[str, Any]:
     with p.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
@@ -27,68 +30,77 @@ def clear_dir(path: Path):
             p.rmdir()
 
 
-def md_list_links(items: List[Dict[str, Any]], base: str) -> str:
-    # items: [{id,name}]
-    if not items:
-        return "_(nenhum)_\n"
-    out = []
-    for it in items:
-        _id = it.get("id", "")
-        name = it.get("name") or _id
-        out.append(f"- [{_id} — {name}]({base}/{_id}/)\n")
-    return "".join(out)
-
-
-def ensure_list(x):
+def ensure_list(x) -> List[Any]:
     return x if isinstance(x, list) else []
 
 
+def md_link(text: str, href: str) -> str:
+    return f"[{text}]({href})" if href else text
+
+
+def md_id_link(_id: str, href: str) -> str:
+    return f"[`{_id}`]({href})" if href else f"`{_id}`"
+
+
+def safe_str(x: Any) -> str:
+    return "" if x is None else str(x)
+
+
+# ----------------------------
+# Normalization
+# Source of truth: modules/*/module.yml
+#
+# Expected shape (per screen):
+# screens:
+#  - id, name, purpose, figma{url}, runtime{url{prd}}
+#    components:
+#      - id, name, type, runtime{test_id}
+#        requirements:
+#          - id, name, acceptance_criteria
+#            rules:
+#              - id, name, expression, description
+# ----------------------------
 def normalize_module(module_yml: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Aceita module.yml com:
-      module: {id,name,owner}
-      screens: [ {id,name,figma,runtime,components:[...], requirements:[...], rules:[...], flows:[...]} ]
-    e também permite componentes/requisitos/regras dentro do componente (atalho).
-    """
     mod = module_yml.get("module") or {}
     screens = ensure_list(module_yml.get("screens"))
 
-    # coletores globais do módulo (dedup por id)
+    # Collect uniques (useful for generating detail pages + links)
     comps: Dict[str, Dict[str, Any]] = {}
     reqs: Dict[str, Dict[str, Any]] = {}
     rules: Dict[str, Dict[str, Any]] = {}
     flows: Dict[str, Dict[str, Any]] = {}
 
-    # helpers
-    def put(d: Dict[str, Dict[str, Any]], obj: Dict[str, Any], kind: str):
+    def put(store: Dict[str, Dict[str, Any]], obj: Dict[str, Any]):
         _id = obj.get("id")
         if not _id:
             return
-        if _id not in d:
-            d[_id] = obj
+        if _id not in store:
+            store[_id] = obj
         else:
-            # merge leve sem sobrescrever o que já existe
+            # merge only missing fields
             for k, v in obj.items():
-                if k not in d[_id] or d[_id][k] in ("", None, [], {}):
-                    d[_id][k] = v
+                if k not in store[_id] or store[_id][k] in ("", None, [], {}):
+                    store[_id][k] = v
 
     for s in screens:
-        # screen-level arrays (opcionais)
-        for r in ensure_list(s.get("requirements")):
-            put(reqs, r, "requirement")
-        for r in ensure_list(s.get("rules")):
-            put(rules, r, "rule")
+        # flows at screen level optional
         for f in ensure_list(s.get("flows")):
-            put(flows, f, "flow")
+            if isinstance(f, dict):
+                put(flows, f)
 
         for c in ensure_list(s.get("components")):
-            put(comps, c, "component")
+            if not isinstance(c, dict):
+                continue
+            put(comps, c)
 
-            # atalhos: component pode conter rules/requirements
-            for rr in ensure_list(c.get("rules")):
-                put(rules, rr, "rule")
             for rq in ensure_list(c.get("requirements")):
-                put(reqs, rq, "requirement")
+                if not isinstance(rq, dict):
+                    continue
+                put(reqs, rq)
+
+                for rn in ensure_list(rq.get("rules")):
+                    if isinstance(rn, dict):
+                        put(rules, rn)
 
     return {
         "module": mod,
@@ -100,170 +112,241 @@ def normalize_module(module_yml: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# ----------------------------
+# Rendering
+# Output:
+# docs/generated/<system>/
+#   index.md                          (lists modules)
+#   modules/<slug>/
+#       index.md                      (ONLY: Telas + Fluxos)
+#       screens/index.md
+#       screens/<SCREEN_ID>/index.md  (shows component -> requirement -> rules)
+#       flows/index.md (+ details if you define flows)
+#       components/<ID>/index.md      (optional details)
+#       requirements/<ID>/index.md    (optional details)
+#       rules/<ID>/index.md           (optional details)
+# ----------------------------
+def render_entity_page(title_id: str, title_name: str, obj: Dict[str, Any]) -> str:
+    lines: List[str] = [f"# {title_id} — {title_name}\n"]
+
+    # optional metadata
+    for k in ("type", "status", "priority"):
+        if k in obj:
+            lines.append(f"- **{k}:** `{safe_str(obj.get(k))}`")
+    if len(lines) > 1:
+        lines.append("")
+
+    # expression/description for rules
+    if obj.get("expression"):
+        lines.append(f"**Expressão:** `{safe_str(obj.get('expression'))}`  ")
+    if obj.get("description"):
+        lines.append(safe_str(obj.get("description")))
+        lines.append("")
+
+    ac = ensure_list(obj.get("acceptance_criteria"))
+    if ac:
+        lines.append("## Critérios de aceite\n")
+        for c in ac:
+            lines.append(f"- {safe_str(c)}")
+        lines.append("")
+
+    return "\n".join(lines).strip() + "\n"
+
+
 def render_module_pages(system: str, module_slug: str, module_data: Dict[str, Any], out_root: Path):
-    """
-    Gera páginas em:
-      docs/generated/<system>/modules/<module_slug>/{screens,components,requirements,rules,flows}/...
-    """
-    mod = module_data["module"] or {}
+    base = out_root / "modules" / module_slug
+
+    mod = module_data.get("module") or {}
     mod_id = mod.get("id", module_slug)
     mod_name = mod.get("name", module_slug)
     owner = mod.get("owner", "")
 
-    base = out_root / "modules" / module_slug
-    write(base / "index.md",
-          f"# {mod_id} — {mod_name}\n\n"
-          f"**Owner:** `{owner}`\n\n"
-          f"- [Telas](./screens/)\n"
-          f"- [Componentes](./components/)\n"
-          f"- [Requisitos](./requirements/)\n"
-          f"- [Regras](./rules/)\n"
-          f"- [Fluxos](./flows/)\n")
-
-    # Indexes
+    # ---- module landing (as requested: no component/req/rule links here) ----
     screens = []
-    for s in module_data["screens"]:
+    for s in module_data.get("screens", []):
         sid = s.get("id")
         if sid:
-            screens.append({"id": sid, "name": s.get("name")})
+            screens.append({"id": sid, "name": s.get("name", sid)})
 
-    components = [{"id": c.get("id"), "name": c.get("name")} for c in module_data["components"] if c.get("id")]
-    requirements = [{"id": r.get("id"), "name": r.get("name") or r.get("title")} for r in module_data["requirements"] if r.get("id")]
-    rules = [{"id": r.get("id"), "name": r.get("name") or r.get("title")} for r in module_data["rules"] if r.get("id")]
-    flows = [{"id": f.get("id"), "name": f.get("name") or f.get("title")} for f in module_data["flows"] if f.get("id")]
+    flows = []
+    for f in module_data.get("flows", []):
+        fid = f.get("id")
+        if fid:
+            flows.append({"id": fid, "name": f.get("name") or f.get("title") or fid})
 
-    write(base / "screens" / "index.md", "# Telas\n\n" + md_list_links(screens, "."))
-    write(base / "components" / "index.md", "# Componentes\n\n" + md_list_links(components, "."))
-    write(base / "requirements" / "index.md", "# Requisitos\n\n" + md_list_links(requirements, "."))
-    write(base / "rules" / "index.md", "# Regras\n\n" + md_list_links(rules, "."))
-    write(base / "flows" / "index.md", "# Fluxos\n\n" + md_list_links(flows, "."))
+    module_md = [f"# {mod_id} — {mod_name}\n\n"]
+    if owner:
+        module_md.append(f"**Owner:** `{owner}`\n\n")
 
-    # Detail pages: Screens
-    by_id_req = {r.get("id"): r for r in module_data["requirements"] if r.get("id")}
-    by_id_rule = {r.get("id"): r for r in module_data["rules"] if r.get("id")}
-    by_id_flow = {f.get("id"): f for f in module_data["flows"] if f.get("id")}
-    by_id_comp = {c.get("id"): c for c in module_data["components"] if c.get("id")}
+    module_md.append("## Telas\n\n")
+    if screens:
+        for it in screens:
+            module_md.append(f"- [{it['id']} — {it['name']}](./screens/{it['id']}/)\n")
+    else:
+        module_md.append("_(nenhuma)_\n")
 
-    for s in module_data["screens"]:
+    module_md.append("\n## Fluxos\n\n")
+    if flows:
+        for it in flows:
+            module_md.append(f"- [{it['id']} — {it['name']}](./flows/{it['id']}/)\n")
+    else:
+        module_md.append("_(nenhum)_\n")
+
+    write(base / "index.md", "".join(module_md))
+
+    # ---- indices ----
+    write(
+        base / "screens" / "index.md",
+        "# Telas\n\n" + ("".join([f"- [{s['id']} — {s['name']}](./{s['id']}/)\n" for s in screens]) if screens else "_(nenhuma)_\n"),
+    )
+
+    write(
+        base / "flows" / "index.md",
+        "# Fluxos\n\n" + ("".join([f"- [{f['id']} — {f['name']}](./{f['id']}/)\n" for f in flows]) if flows else "_(nenhum)_\n"),
+    )
+
+    # Optional indices (not linked from module page, but used by links inside screens)
+    comps = [{"id": c.get("id"), "name": c.get("name") or c.get("title") or c.get("id")} for c in module_data.get("components", []) if c.get("id")]
+    reqs = [{"id": r.get("id"), "name": r.get("name") or r.get("title") or r.get("id")} for r in module_data.get("requirements", []) if r.get("id")]
+    rns  = [{"id": r.get("id"), "name": r.get("name") or r.get("title") or r.get("id")} for r in module_data.get("rules", []) if r.get("id")]
+
+    write(base / "components" / "index.md", "# Componentes\n\n" + ("".join([f"- [{c['id']} — {c['name']}](./{c['id']}/)\n" for c in comps]) if comps else "_(nenhum)_\n"))
+    write(base / "requirements" / "index.md", "# Requisitos\n\n" + ("".join([f"- [{r['id']} — {r['name']}](./{r['id']}/)\n" for r in reqs]) if reqs else "_(nenhum)_\n"))
+    write(base / "rules" / "index.md", "# Regras\n\n" + ("".join([f"- [{r['id']} — {r['name']}](./{r['id']}/)\n" for r in rns]) if rns else "_(nenhum)_\n"))
+
+    # ---- detail pages: screens with traceability (component -> requirement -> rules) ----
+    for s in module_data.get("screens", []):
         sid = s.get("id")
         if not sid:
             continue
+
         figma = s.get("figma") or {}
         runtime = s.get("runtime") or {}
-
-        # refs: podem ser IDs (strings) ou objetos (dicts)
-        comp_ids = []
-        for c in ensure_list(s.get("components")):
-            if isinstance(c, dict) and c.get("id"):
-                comp_ids.append(c["id"])
-            elif isinstance(c, str):
-                comp_ids.append(c)
-
-        req_ids = []
-        for r in ensure_list(s.get("requirements")):
-            if isinstance(r, dict) and r.get("id"):
-                req_ids.append(r["id"])
-            elif isinstance(r, str):
-                req_ids.append(r)
-
-        rule_ids = []
-        for r in ensure_list(s.get("rules")):
-            if isinstance(r, dict) and r.get("id"):
-                rule_ids.append(r["id"])
-            elif isinstance(r, str):
-                rule_ids.append(r)
-
-        flow_ids = []
-        for f in ensure_list(s.get("flows")):
-            if isinstance(f, dict) and f.get("id"):
-                flow_ids.append(f["id"])
-            elif isinstance(f, str):
-                flow_ids.append(f)
-
-        md = []
-        md.append(f"# {sid} — {s.get('name', sid)}\n")
-        if s.get("purpose"):
-            md.append("## Objetivo\n")
-            md.append(str(s.get("purpose")).strip() + "\n")
-
-        md.append("## Links\n")
-        if figma.get("url"):
-            md.append(f"- Figma: [{figma.get('url')}]({figma.get('url')})\n")
         url = runtime.get("url") or {}
-        if isinstance(url, dict) and url.get("prd"):
-            md.append(f"- Sistema (PRD): [{url.get('prd')}]({url.get('prd')})\n")
+        prd_url = url.get("prd", "") if isinstance(url, dict) else ""
 
-        md.append("## Componentes\n")
-        md.append("\n".join([f"- `{cid}`" for cid in comp_ids]) + ("\n" if comp_ids else "_(nenhum)_\n"))
+        lines: List[str] = []
+        lines.append(f"# {sid} — {s.get('name', sid)}\n")
 
-        md.append("\n## Requisitos\n")
-        md.append("\n".join([f"- `{rid}`" for rid in req_ids]) + ("\n" if req_ids else "_(nenhum)_\n"))
+        purpose = s.get("purpose")
+        if purpose:
+            lines.append("## Objetivo\n")
+            lines.append(safe_str(purpose).strip() + "\n")
 
-        md.append("\n## Regras\n")
-        md.append("\n".join([f"- `{rid}`" for rid in rule_ids]) + ("\n" if rule_ids else "_(nenhum)_\n"))
+        # Links
+        lines.append("## Links\n")
+        if figma.get("url"):
+            lines.append(f"- Figma: {md_link(figma.get('url'), figma.get('url'))}")
+        if prd_url:
+            lines.append(f"- Sistema (PRD): {md_link(prd_url, prd_url)}")
+        if not figma.get("url") and not prd_url:
+            lines.append("_(nenhum)_")
+        lines.append("")
 
-        md.append("\n## Fluxos\n")
-        md.append("\n".join([f"- `{fid}`" for fid in flow_ids]) + ("\n" if flow_ids else "_(nenhum)_\n"))
+        # Traceability
+        lines.append("## Componentes e Regras\n")
+        comps_screen = ensure_list(s.get("components"))
 
-        write(base / "screens" / sid / "index.md", "\n".join(md))
-
-    # Detail pages: Components / Requirements / Rules / Flows (render simples)
-    def render_entity(out_dir: Path, obj: Dict[str, Any]):
-        _id = obj.get("id")
-        if not _id:
-            return
-        title = obj.get("name") or obj.get("title") or _id
-        lines = [f"# {_id} — {title}\n"]
-
-        # links
-        fig = obj.get("figma") or {}
-        if fig.get("url") or fig.get("node_id"):
-            lines.append("## Figma\n")
-            if fig.get("url"):
-                lines.append(f"- [{fig.get('url')}]({fig.get('url')})")
-            if fig.get("node_id"):
-                lines.append(f"- node_id: `{fig.get('node_id')}`")
-            lines.append("")
-
-        runtime = obj.get("runtime") or {}
-        if runtime:
-            lines.append("## Implementação\n")
-            for k, v in runtime.items():
-                if isinstance(v, dict):
+        if not comps_screen:
+            lines.append("_(nenhum)_\n")
+        else:
+            for c in comps_screen:
+                if not isinstance(c, dict):
                     continue
-                lines.append(f"- {k}: `{v}`")
-            lines.append("")
+                cid = c.get("id", "")
+                cname = c.get("name") or cid
+                ctype = c.get("type", "")
+                c_rt = c.get("runtime") or {}
+                c_test_id = c_rt.get("test_id") if isinstance(c_rt, dict) else ""
 
-        # regra/requisito
-        if obj.get("expression"):
-            lines.append(f"**Expressão:** `{obj.get('expression')}`\n")
-        if obj.get("description"):
-            lines.append(str(obj.get("description")) + "\n")
+                # Component header
+                comp_header = f"### {cid} — {cname}"
+                if ctype:
+                    comp_header += f"  \n**Tipo:** `{ctype}`"
+                if c_test_id:
+                    comp_header += f"  \n**Implementação (test_id):** `{c_test_id}`"
+                lines.append(comp_header + "\n")
 
-        ac = obj.get("acceptance_criteria") or []
-        if ac:
-            lines.append("## Critérios de aceite\n")
-            for c in ac:
-                lines.append(f"- {c}")
-            lines.append("")
+                reqs_comp = ensure_list(c.get("requirements"))
+                if not reqs_comp:
+                    lines.append("_(sem requisitos vinculados)_\n")
+                    continue
 
-        write(out_dir / _id / "index.md", "\n".join(lines).strip() + "\n")
+                for rq in reqs_comp:
+                    if not isinstance(rq, dict):
+                        continue
+                    rid = rq.get("id", "")
+                    rname = rq.get("name") or rq.get("title") or rid
 
-    for c in module_data["components"]:
-        render_entity(base / "components", c)
-    for r in module_data["requirements"]:
-        render_entity(base / "requirements", r)
-    for r in module_data["rules"]:
-        # compat: rule pode vir como {id,expression,description,message}
-        render_entity(base / "rules", r)
-    for f in module_data["flows"]:
-        render_entity(base / "flows", f)
+                    # Link requirement to module requirement page
+                    req_href = f"../../requirements/{rid}/" if rid else ""
+                    lines.append(f"- **Requisito:** {md_id_link(rid, req_href)} — {rname}")
+
+                    # acceptance criteria (optional inline)
+                    ac = ensure_list(rq.get("acceptance_criteria"))
+                    if ac:
+                        for ccc in ac:
+                            lines.append(f"  - _Aceite:_ {safe_str(ccc)}")
+
+                    # rules under requirement
+                    rules_req = ensure_list(rq.get("rules"))
+                    if rules_req:
+                        lines.append("  - **Regras:**")
+                        for rn in rules_req:
+                            if not isinstance(rn, dict):
+                                continue
+                            nid = rn.get("id", "")
+                            nname = rn.get("name") or rn.get("title") or nid
+                            rn_href = f"../../rules/{nid}/" if nid else ""
+                            expr = rn.get("expression")
+                            if expr:
+                                lines.append(f"    - {md_id_link(nid, rn_href)} — {nname}  \n      `expressão:` `{safe_str(expr)}`")
+                            else:
+                                lines.append(f"    - {md_id_link(nid, rn_href)} — {nname}")
+                    else:
+                        lines.append("  - **Regras:** _(nenhuma)_")
+
+                lines.append("")  # spacing between components
+
+        write(base / "screens" / sid / "index.md", "\n".join(lines).strip() + "\n")
+
+    # ---- optional detail pages for entities (so the links work) ----
+    for c in module_data.get("components", []):
+        cid = c.get("id")
+        if not cid:
+            continue
+        cname = c.get("name") or c.get("title") or cid
+        write(base / "components" / cid / "index.md", render_entity_page(cid, cname, c))
+
+    for r in module_data.get("requirements", []):
+        rid = r.get("id")
+        if not rid:
+            continue
+        rname = r.get("name") or r.get("title") or rid
+        write(base / "requirements" / rid / "index.md", render_entity_page(rid, rname, r))
+
+    for rn in module_data.get("rules", []):
+        nid = rn.get("id")
+        if not nid:
+            continue
+        nname = rn.get("name") or rn.get("title") or nid
+        write(base / "rules" / nid / "index.md", render_entity_page(nid, nname, rn))
+
+    for f in module_data.get("flows", []):
+        fid = f.get("id")
+        if not fid:
+            continue
+        fname = f.get("name") or f.get("title") or fid
+        write(base / "flows" / fid / "index.md", render_entity_page(fid, fname, f))
 
 
+# ----------------------------
+# Main
+# ----------------------------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="docs")
-    ap.add_argument("--system", required=True)
+    ap.add_argument("--system", required=True, help="folder name in docs/20-systems/<system>")
     args = ap.parse_args()
 
     root = Path(args.root)
@@ -272,13 +355,12 @@ def main():
 
     clear_dir(out_root)
 
-    # Descobre módulos
     modules_dir = system_root / "modules"
     module_files = sorted(modules_dir.glob("*/module.yml")) if modules_dir.exists() else []
 
-    # System landing
-    hub = [f"# {args.system}\n\n"]
-    hub.append("## Módulos\n\n")
+    # System landing: list modules
+    hub: List[str] = [f"# {args.system}\n\n", "## Módulos\n\n"]
+
     if not module_files:
         hub.append("_(nenhum)_\n")
     else:
@@ -288,8 +370,10 @@ def main():
             mod = data.get("module") or {}
             mod_id = mod.get("id", slug)
             mod_name = mod.get("name", slug)
+
             hub.append(f"- [{mod_id} — {mod_name}](./modules/{slug}/)\n")
 
+            # generate module
             render_module_pages(args.system, slug, data, out_root)
 
     write(out_root / "index.md", "".join(hub))
