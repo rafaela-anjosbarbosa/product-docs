@@ -355,6 +355,9 @@ def main():
 
     clear_dir(out_root)
 
+    out_root.mkdir(parents=True, exist_ok=True)
+    write(out_root / "index.md", f"# {args.system}\n\n## Módulos\n\n_(carregando)_\n")
+
     modules_dir = system_root / "modules"
     module_files = sorted(modules_dir.glob("*/module.yml")) if modules_dir.exists() else []
 
