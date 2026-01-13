@@ -1,0 +1,18 @@
+site_name: Product Docs
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Glossário: 00-glossary/glossary.md
+  - Arquitetura:
+      - Visão geral: 10-architecture/overview.md
+      - ADRs: 10-architecture/adr/ADR-0001-docs-as-code.md
+  - SGN:
+      - Visão geral: 20-systems/sgn/index.md
+      - Telas: 20-systems/sgn/21-screens/index.md
+      - Componentes: 20-systems/sgn/22-components/index.md
+      - Requisitos: 20-systems/sgn/23-requirements/index.md
+      - Regras: 20-systems/sgn/24-rules/index.md
+      - Fluxos: 20-systems/sgn/25-flows/index.md
+      - Rastreabilidade: 20-systems/sgn/27-traceability/matrix.md

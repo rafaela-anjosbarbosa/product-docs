@@ -1,0 +1,5 @@
+# Componentes
+
+- `INP_VALOR_MENSAL`
+- `BTN_SALVAR_CONTRATO`
+- `LBL_TOTAL`

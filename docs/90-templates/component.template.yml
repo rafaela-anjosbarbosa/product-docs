@@ -1,0 +1,14 @@
+id: INP_EXEMPLO
+name: Componente - Exemplo
+type: input
+status: draft
+screens: []
+
+figma:
+  node_id: ""
+  name: ""
+
+data: {}
+events: []
+validations: []
+behavior_refs: []

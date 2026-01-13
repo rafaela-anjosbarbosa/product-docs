@@ -1,0 +1,17 @@
+id: RN-000
+name: Nome da regra
+status: draft
+domain: dominio
+severity: info
+
+rule:
+  expression: ""
+  description: ""
+
+message:
+  ref: ""
+
+applies_to:
+  screens: []
+  components: []
+  api: []

@@ -1,0 +1,14 @@
+id: UC-000-exemplo
+name: Fluxo - Exemplo
+status: draft
+
+actors: []
+
+trigger:
+  screen: TELA_EXEMPLO
+  component: BTN_EXEMPLO
+  event: onClick
+
+main_flow: []
+alternative_flows: []
+non_functional: []

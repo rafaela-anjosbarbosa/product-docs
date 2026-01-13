@@ -1,0 +1,22 @@
+id: RF-000
+title: Título do requisito
+type: functional
+status: draft
+priority: should
+source: produto
+
+scope:
+  screen: TELA_EXEMPLO
+  component: INP_EXEMPLO
+  event: onChange
+
+behavior:
+  main: []
+  alternatives: []
+
+acceptance_criteria: []
+
+links:
+  rules: []
+  flows: []
+  messages: []

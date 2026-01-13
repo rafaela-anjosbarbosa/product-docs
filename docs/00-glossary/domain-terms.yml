@@ -1,0 +1,5 @@
+terms:
+  - id: CONTRATO
+    meaning: Entidade central de contratos no SGN.
+  - id: VALOR_MENSAL
+    meaning: Valor mensal do contrato (money).

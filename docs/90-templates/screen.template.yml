@@ -1,0 +1,23 @@
+id: TELA_EXEMPLO
+name: Tela - Exemplo
+module: sistema.modulo
+status: draft
+owner: squad
+last_reviewed: YYYY-MM-DD
+
+purpose: >
+  Objetivo da tela.
+
+preconditions: []
+postconditions: []
+entities: []
+
+figma:
+  url: ""
+  page: ""
+  frame: ""
+
+components: []
+requirements: []
+rules: []
+flows: []

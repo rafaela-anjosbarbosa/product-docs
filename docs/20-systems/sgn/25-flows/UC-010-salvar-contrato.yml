@@ -1,0 +1,34 @@
+id: UC-010-salvar-contrato
+name: Salvar contrato
+status: active
+
+actors:
+  - usuario
+
+trigger:
+  screen: TELA_CONTRATO
+  component: BTN_SALVAR_CONTRATO
+  event: onClick
+
+main_flow:
+  - step: Validar campos obrigatórios
+    refs:
+      - RF-023
+      - RN-012
+  - step: Calcular total (se aplicável)
+    refs:
+      - UC-011-calcular-total
+      - RN-045
+  - step: Persistir contrato
+  - step: Exibir MSG-CONTRATO-SALVO
+    refs:
+      - RF-024
+
+alternative_flows:
+  - when: "existem erros de validação"
+    then:
+      - step: Exibir mensagens por campo
+      - step: Não persistir
+
+non_functional:
+  - "Salvar deve responder em até 2s em condições normais"
