@@ -373,6 +373,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="docs")
     ap.add_argument("--system", default="__ALL__", help="use __ALL__ to generate all systems")
+    ap.add_argument("--hub-only", action="store_true", help="only regenerate the global hub")
     args = ap.parse_args()
 
     root = Path(args.root)
