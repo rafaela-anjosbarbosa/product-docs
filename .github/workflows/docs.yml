@@ -30,6 +30,10 @@ jobs:
         run: |
           pip install -r requirements-docs.txt
 
+      - name: Generate pages from YAML
+        run: |
+          python tools/generate_pages.py --root docs --system sgn
+
       - name: Lint docs (prevent broken references)
         run: |
           python tools/doclint.py --root docs --system sgn
