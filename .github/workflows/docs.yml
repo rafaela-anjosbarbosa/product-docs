@@ -30,13 +30,25 @@ jobs:
         run: |
           pip install -r requirements-docs.txt
 
-      - name: Generate pages from YAML
+      - name: Generate pages from YAML (all systems)
         run: |
-          python tools/generate_pages.py --root docs --system sgn
+          for d in docs/20-systems/*; do
+            if [ -d "$d" ]; then
+              sys=$(basename "$d")
+              echo "Generating pages for: $sys"
+              python tools/generate_pages.py --root docs --system "$sys"
+            fi
+          done
 
-      - name: Lint docs (prevent broken references)
+      - name: Lint docs (all systems)
         run: |
-          python tools/doclint.py --root docs --system sgn
+          for d in docs/20-systems/*; do
+            if [ -d "$d" ]; then
+              sys=$(basename "$d")
+              echo "Linting: $sys"
+              python tools/doclint.py --root docs --system "$sys"
+            fi
+          done
 
       - name: Build site
         run: |
