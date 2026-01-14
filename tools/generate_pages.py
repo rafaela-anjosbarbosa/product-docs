@@ -316,7 +316,7 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
         
         lines: List[str] = []
         lines.append(f"# {sid} — {s.get('name', sid)}\n")
-        lines.append(f"[Maiores detalhes](./details/)\n")
+        lines.append("[Maiores detalhes](details/)\n")
 
         purpose = s.get("purpose")
         if purpose:
@@ -418,6 +418,7 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
                 lines.append("")  # spacing between components
 
         write(base / "screens" / sid / "index.md", "\n".join(lines).strip() + "\n")
+        write(base / "screens" / sid / "details" / "index.md", "\n".join(lines).strip() + "\n")
 
     # ---- optional detail pages for entities (so the links work) ----
     for c in module_data.get("components", []):
