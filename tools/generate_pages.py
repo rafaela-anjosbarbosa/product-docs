@@ -417,8 +417,42 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
 
                 lines.append("")  # spacing between components
 
+        
         write(base / "screens" / sid / "index.md", "\n".join(lines).strip() + "\n")
-        write(base / "screens" / sid / "details" / "index.md", "\n".join(lines).strip() + "\n")
+        
+        # Página "Maiores detalhes"
+        details_lines: List[str] = []
+        details_lines.append(f"# {sid} — {s.get('name', sid)} (Detalhes)\n")
+
+        meta = s.get("meta") or {}
+        if isinstance(meta, dict) and meta:
+            details_lines.append("## Metadados\n")
+            for k, v in meta.items():
+                if v is None or v == "":
+                    continue
+                details_lines.append(f"- **{k}:** `{safe_str(v)}`")
+            details_lines.append("")
+
+        usedin = ensure_list(s.get("usedin"))
+        if usedin:
+            details_lines.append("## Usado em\n")
+            for u in usedin:
+                details_lines.append(f"- {safe_str(u)}")
+            details_lines.append("")
+
+        refs = ensure_list(s.get("references"))
+        if refs:
+            details_lines.append("## Referências\n")
+            for r in refs:
+                if isinstance(r, dict):
+                    title = r.get("title") or r.get("name") or "referência"
+                    url = r.get("url") or ""
+                    details_lines.append(f"- {md_link(title, url)}")
+                else:
+                    details_lines.append(f"- {safe_str(r)}")
+            details_lines.append("")
+
+        write(base / "screens" / sid / "details" / "index.md", "\n".join(details_lines).strip() + "\n")
 
     # ---- optional detail pages for entities (so the links work) ----
     for c in module_data.get("components", []):
