@@ -5,55 +5,251 @@ module:
   created_by: Rafaela
   updated_by: João
   updated_at: "2026-01-13"
+  description: >
+    Módulo responsável pelo ciclo de vida de contratos (cadastro, validações,
+    vínculo com cliente, vigência e valores).
+  notes:
+    - "Este módulo é exemplo (Sistema X)."
+    - "Padronizar IDs: MOD_, TELA_, CMP_, RF_, RN_."
+  references:
+    - title: "ADR-0007 — Padrão de Documentação por Módulo"
+      url: "https://confluence.exemplo/adr-0007"
+    - title: "Guia de UI (Design System)"
+      url: "https://design.exemplo/ui-guidelines"
+  usedin:
+    - "SistemaX > Backoffice"
+    - "SistemaX > Portal do Cliente"
 
 screens:
   - id: TELA_CONTRATO
     name: Cadastro de Contrato
     purpose: Cadastrar e atualizar contratos.
+    description: >
+      Tela usada para registrar contratos, definindo cliente, vigência e valor.
+      Inclui validações de obrigatoriedade e consistência de datas e valores.
     meta:
       created_by: Rafaela
       updated_by: João
       updated_at: "2026-01-13"
+      last_reviewed_at: "2026-01-14"
+      status: "draft"
+      tags:
+        - "contratos"
+        - "cadastro"
+        - "validação"
     figma:
       url: "https://figma.com/..."
+      node_id: "123:456"
     runtime:
       url:
         dev: "https://dev.sistema/contratos/cadastro"
         hml: "https://hml.sistema/contratos/cadastro"
         prd: "https://sistema/contratos/cadastro"
+    notes:
+      - "Campo Cliente usa autocomplete com busca por razão social e CNPJ."
+      - "Validações devem ocorrer também no backend."
+    references:
+      - title: "História: Contratos - Cadastro e validações"
+        url: "https://devops.exemplo/boards/story/12345"
+      - title: "Especificação API /clientes/search"
+        url: "https://api.exemplo/docs/clientes-search"
+    usedin:
+      - "Treinamento interno de analistas"
+      - "Processo comercial > formalização"
 
     components:
       - id: CMP_CLIENTE
         name: Cliente
         type: autocomplete
+        description: >
+          Campo de seleção de cliente com sugestão (autocomplete) por
+          razão social ou CNPJ.
         runtime:
           test_id: "cliente-autocomplete"
+          component_id: "ClienteAutocomplete"
+        usedin:
+          - "Front-end: ContratosForm"
+        references:
+          - title: "Design System: Autocomplete"
+            url: "https://design.exemplo/components/autocomplete"
+        notes:
+          - "A busca deve ter debounce de ~300ms."
+          - "Quando selecionado, armazenar id_cliente + dados de exibição."
         requirements:
           - id: RF_SELECIONAR_CLIENTE
             name: Selecionar cliente por razão social ou CNPJ
+            description: >
+              O usuário deve conseguir localizar e selecionar um cliente
+              digitando razão social ou CNPJ, com resultados relevantes e rápidos.
+            acceptance_criteria:
+              - "Permitir busca por razão social (parcial) e por CNPJ (com/sem máscara)."
+              - "Apresentar lista de sugestões com razão social + CNPJ."
+              - "Ao selecionar, preencher o identificador do cliente (id_cliente) no contrato."
+              - "Se não houver resultados, exibir mensagem 'Nenhum cliente encontrado'."
+            examples:
+              - title: "Busca por razão social"
+                given: "Usuário digita 'ACME'"
+                when: "o sistema consulta /clientes/search"
+                then: "exibe clientes cuja razão social contém 'ACME'"
+              - title: "Busca por CNPJ com máscara"
+                given: "Usuário digita '12.345.678/0001-90'"
+                when: "o sistema normaliza para '12345678000190'"
+                then: "exibe o cliente correspondente, se existir"
+            notes:
+              - "Não permitir criar cliente nesta tela (somente seleção)."
+            references:
+              - title: "API /clientes/search"
+                url: "https://api.exemplo/docs/clientes-search"
+            usedin:
+              - "TELA_CONTRATO"
             rules:
               - id: RN_SUGGEST_CLIENTE
                 name: Sugestão por razão social ou CNPJ
+                description: >
+                  O autocomplete deve sugerir clientes por razão social ou CNPJ,
+                  ordenando por relevância (match exato > prefixo > contém).
+                expression: >
+                  relevance = exactMatch(cnpj) * 100
+                            + prefixMatch(razaoSocial) * 50
+                            + containsMatch(razaoSocial) * 10
+                acceptance_criteria:
+                  - "Se o input parecer CNPJ, priorizar match por CNPJ."
+                  - "Exibir no máximo 10 sugestões."
+                  - "Tempo de resposta esperado <= 500ms em PRD (P95)."
+                examples:
+                  - title: "Prioridade por CNPJ"
+                    given: "Usuário digita '12345678000190'"
+                    when: "existem 2 resultados por razão social e 1 por CNPJ"
+                    then: "resultado por CNPJ aparece no topo"
+                notes:
+                  - "Aplicar debounce no front-end e rate limit no backend."
+                references:
+                  - title: "Contrato de performance do endpoint"
+                    url: "https://monitoramento.exemplo/slo-clientes-search"
+                usedin:
+                  - "CMP_CLIENTE"
               - id: RN_CLIENTE_OBRIGATORIO
                 name: Campo cliente obrigatório
+                description: "Bloquear salvar contrato se cliente não estiver selecionado."
+                expression: "cliente.id_cliente IS NOT NULL"
+                acceptance_criteria:
+                  - "Ao tentar salvar sem cliente, exibir mensagem 'Selecione um cliente'."
+                  - "Validação deve existir no front-end e no backend."
+                examples:
+                  - title: "Salvar sem cliente"
+                    given: "Cliente vazio"
+                    when: "Usuário clica em Salvar"
+                    then: "Exibe erro e não persiste"
+                notes:
+                  - "Mensagem deve ficar próxima ao campo."
+                references:
+                  - title: "Validações padrão de formulário"
+                    url: "https://design.exemplo/forms/validations"
+                usedin:
+                  - "CMP_CLIENTE"
 
       - id: CMP_PERIODO
         name: Período do contrato
         type: date-range
+        description: "Campos de data para início e término da vigência do contrato."
+        runtime:
+          component_id: "ContratoDateRange"
+          test_id_inicio: "data-inicio"
+          test_id_termino: "data-termino"
+        notes:
+          - "Datas devem usar timezone do tenant (padrão America/Sao_Paulo)."
         requirements:
           - id: RF_VALIDAR_PERIODO
-            name: Data fim não pode ser menor que data início
+            name: Validar vigência do contrato
+            description: "Garantir consistência entre data de início e data de término."
+            acceptance_criteria:
+              - "Data término não pode ser menor que data início."
+              - "Permitir data término igual à data início (contrato de 1 dia)."
+              - "Exibir mensagem no campo término quando inválido."
+            examples:
+              - title: "Término menor que início"
+                given: "Início = 10/01/2026, Término = 09/01/2026"
+                when: "Usuário tenta salvar"
+                then: "Bloqueia e indica erro no campo término"
+            notes:
+              - "Validação deve ocorrer ao sair do campo término e no salvar."
+            references:
+              - title: "Regras de vigência - Política Comercial"
+                url: "https://intranet.exemplo/politicas/vigencia"
+            usedin:
+              - "TELA_CONTRATO"
             rules:
               - id: RN_DATA_FIM_MAIOR_IGUAL_INICIO
                 name: Validar data fim >= data início
+                description: "Bloquear salvar se data_termino < data_inicio."
+                expression: "data_termino >= data_inicio"
+                acceptance_criteria:
+                  - "Se inválido, exibir 'Término não pode ser menor que início'."
+                  - "Não permitir persistir em backend quando inválido."
+                examples:
+                  - title: "Caso válido"
+                    given: "Início = 10/01/2026, Término = 10/01/2026"
+                    when: "Salvar"
+                    then: "Permite salvar"
+                notes:
+                  - "Mensagem deve ser consistente com padrão do design system."
+                references:
+                  - title: "Design System - Mensagens de erro"
+                    url: "https://design.exemplo/forms/error-messages"
+                usedin:
+                  - "CMP_PERIODO"
 
       - id: CMP_VALOR
         name: Valor do contrato
         type: currency
+        description: "Campo monetário para valor mensal do contrato."
+        runtime:
+          test_id: "input-valor-mensal"
+          component_id: "CurrencyInput"
+        notes:
+          - "Formatar moeda em pt-BR."
+          - "Armazenar valor em centavos no backend (inteiro)."
         requirements:
           - id: RF_VALIDAR_VALOR
-            name: Valor deve ser maior que zero
+            name: Validar valor do contrato
+            description: "Garantir que o valor mensal seja informado e maior que zero."
+            acceptance_criteria:
+              - "Valor deve ser numérico e maior que zero."
+              - "Não aceitar caracteres inválidos."
+              - "Exibir mensagem amigável para valor inválido."
+            examples:
+              - title: "Valor zero"
+                given: "Valor = 0"
+                when: "Salvar"
+                then: "Bloqueia e exibe erro"
+              - title: "Valor válido"
+                given: "Valor = 150,00"
+                when: "Salvar"
+                then: "Permite salvar"
+            notes:
+              - "Considerar arredondamento para 2 casas."
+            references:
+              - title: "Padrão monetário e arredondamento"
+                url: "https://intranet.exemplo/padroes/moeda"
+            usedin:
+              - "TELA_CONTRATO"
             rules:
               - id: RN_VALOR_MAIOR_ZERO
                 name: Validar valor > 0
-
+                description: "Bloquear salvar se valor_mensal <= 0."
+                expression: "valor_mensal > 0"
+                acceptance_criteria:
+                  - "Se <= 0, exibir 'Informe um valor maior que zero'."
+                  - "Backend deve validar e retornar erro 400."
+                examples:
+                  - title: "Valor negativo"
+                    given: "Valor = -10,00"
+                    when: "Salvar"
+                    then: "Bloqueia e exibe erro"
+                notes:
+                  - "Mensagem deve orientar o usuário."
+                references:
+                  - title: "API Contratos - validações"
+                    url: "https://api.exemplo/docs/contratos"
+                usedin:
+                  - "CMP_VALOR"
