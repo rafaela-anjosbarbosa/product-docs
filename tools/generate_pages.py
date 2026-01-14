@@ -223,8 +223,7 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
         figma = s.get("figma") or {}
         runtime = s.get("runtime") or {}
         url = runtime.get("url") or {}
-        prd_url = url.get("prd", "") if isinstance(url, dict) else ""
-
+        
         lines: List[str] = []
         lines.append(f"# {sid} — {s.get('name', sid)}\n")
 
@@ -233,15 +232,32 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
             lines.append("## Objetivo\n")
             lines.append(safe_str(purpose).strip() + "\n")
 
-        # Links
+        # Metadados (auto)
+        meta = s.get("meta") or {}
+        if isinstance(meta, dict) and meta:
+            lines.append("## Metadados\n")
+            for k, v in meta.items():
+                if v is None or v == "":
+                    continue
+                lines.append(f"- **{k}:** `{safe_str(v)}`")
+            lines.append("")
+
+        # Links (auto: figma + todos os ambientes em runtime.url)
         lines.append("## Links\n")
         if figma.get("url"):
             lines.append(f"- Figma: {md_link(figma.get('url'), figma.get('url'))}")
-        if prd_url:
-            lines.append(f"- Sistema (PRD): {md_link(prd_url, prd_url)}")
-        if not figma.get("url") and not prd_url:
+
+        # runtime.url pode ter dev/hml/prd/qa/etc
+        if isinstance(url, dict) and url:
+            for env, href in url.items():
+                if href:
+                    env_upper = str(env).upper()
+                    lines.append(f"- Sistema ({env_upper}): {md_link(href, href)}")
+
+        if not figma.get("url") and not (isinstance(url, dict) and any(url.values())):
             lines.append("_(nenhum)_")
         lines.append("")
+
 
         # Traceability
         lines.append("## Componentes e Regras\n")
