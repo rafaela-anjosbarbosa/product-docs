@@ -2,15 +2,24 @@ module:
   id: MOD_CONTRATOS
   name: Contratos
   owner: squad-melhorias
+  created_by: Rafaela
+  updated_by: João
+  updated_at: "2026-01-13"
 
 screens:
   - id: TELA_CONTRATO
     name: Cadastro de Contrato
     purpose: Cadastrar e atualizar contratos.
+    meta:
+      created_by: Rafaela
+      updated_by: João
+      updated_at: "2026-01-13"
     figma:
       url: "https://figma.com/..."
     runtime:
       url:
+        dev: "https://dev.sistema/contratos/cadastro"
+        hml: "https://hml.sistema/contratos/cadastro"
         prd: "https://sistema/contratos/cadastro"
 
     components:
