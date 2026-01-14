@@ -253,3 +253,106 @@ screens:
                     url: "https://api.exemplo/docs/contratos"
                 usedin:
                   - "CMP_VALOR"
+
+  - id: TELA_BUSCA_CONTRATO
+    name: Busca de Contratos
+    purpose: Localizar contratos existentes para consulta, edição ou cancelamento.
+    description: >
+      Tela utilizada para pesquisar contratos por cliente, período, status e valor,
+      exibindo os resultados em formato de lista com ações disponíveis.
+    meta:
+      created_by: Rafaela
+      updated_by: João
+      updated_at: "2026-01-14"
+      status: "draft"
+      tags:
+        - "contratos"
+        - "busca"
+        - "listagem"
+    figma:
+      url: "https://figma.com/..."
+      node_id: "789:321"
+    runtime:
+      url:
+        dev: "https://dev.sistema/contratos/busca"
+        hml: "https://hml.sistema/contratos/busca"
+        prd: "https://sistema/contratos/busca"
+    notes:
+      - "Resultados devem ser paginados."
+      - "A busca deve ser executada automaticamente ao alterar filtros."
+    references:
+      - title: "História: Contratos - Busca e listagem"
+        url: "https://devops.exemplo/boards/story/67890"
+    usedin:
+      - "Backoffice > Gestão de Contratos"
+
+    components:
+      - id: CMP_FILTRO_CLIENTE
+        name: Filtro por Cliente
+        type: autocomplete
+        description: "Filtro para localizar contratos pelo cliente."
+        requirements:
+          - id: RF_FILTRAR_POR_CLIENTE
+            name: Filtrar contratos por cliente
+            description: "Permitir buscar contratos digitando razão social ou CNPJ."
+            acceptance_criteria:
+              - "Buscar por razão social ou CNPJ."
+              - "Aplicar filtro automaticamente após seleção."
+            rules:
+              - id: RN_APLICAR_FILTRO_CLIENTE
+                name: Aplicar filtro por cliente
+                description: "A consulta deve considerar o cliente selecionado."
+                expression: "where contrato.id_cliente = :id_cliente"
+
+      - id: CMP_FILTRO_STATUS
+        name: Filtro por Status
+        type: select
+        description: "Filtro para selecionar o status do contrato."
+        requirements:
+          - id: RF_FILTRAR_POR_STATUS
+            name: Filtrar contratos por status
+            description: "Permitir selecionar um ou mais status."
+            acceptance_criteria:
+              - "Exibir lista de status disponíveis."
+              - "Permitir limpar filtro."
+            rules:
+              - id: RN_APLICAR_FILTRO_STATUS
+                name: Aplicar filtro por status
+                description: "A consulta deve considerar o status selecionado."
+                expression: "where contrato.status in (:status)"
+
+      - id: CMP_LISTA_RESULTADOS
+        name: Lista de Contratos
+        type: datagrid
+        description: "Tabela com os contratos encontrados."
+        notes:
+          - "Exibir colunas: Cliente, Início, Término, Valor, Status."
+          - "Permitir ordenação por coluna."
+        requirements:
+          - id: RF_EXIBIR_RESULTADOS
+            name: Exibir lista de contratos encontrados
+            description: "Mostrar os contratos conforme filtros aplicados."
+            acceptance_criteria:
+              - "Exibir mensagem quando não houver resultados."
+              - "Paginar resultados em blocos de 20."
+            rules:
+              - id: RN_PAGINAR_RESULTADOS
+                name: Paginar resultados
+                description: "Retornar apenas os registros da página atual."
+                expression: "limit 20 offset (:pagina - 1) * 20"
+
+      - id: CMP_ACOES
+        name: Ações do Contrato
+        type: actions
+        description: "Ações disponíveis em cada linha do resultado."
+        requirements:
+          - id: RF_ACESSAR_CONTRATO
+            name: Acessar contrato selecionado
+            description: "Permitir abrir a tela de edição do contrato."
+            acceptance_criteria:
+              - "Ao clicar em 'Editar', abrir TELA_CONTRATO com o contrato carregado."
+            rules:
+              - id: RN_NAVEGAR_PARA_EDICAO
+                name: Navegar para edição do contrato
+                description: "Redirecionar para a tela de cadastro com o ID do contrato."
+                expression: "navigate('/contratos/cadastro?id=' + contrato.id)"
