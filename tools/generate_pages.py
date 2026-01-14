@@ -150,6 +150,52 @@ def render_entity_page(title_id: str, title_name: str, obj: Dict[str, Any]) -> s
             lines.append(f"- {safe_str(c)}")
         lines.append("")
 
+    # examples (list of dicts or strings)
+    examples = ensure_list(obj.get("examples"))
+    if examples:
+        lines.append("## Exemplos\n")
+        for ex in examples:
+            if isinstance(ex, dict):
+                t = ex.get("title") or "Exemplo"
+                lines.append(f"**{t}**")
+                for kk in ("given", "when", "then"):
+                    if ex.get(kk):
+                        lines.append(f"- **{kk}:** {safe_str(ex.get(kk))}")
+                lines.append("")
+            else:
+                lines.append(f"- {safe_str(ex)}")
+        lines.append("")
+
+    # notes
+    notes = ensure_list(obj.get("notes"))
+    if notes:
+        lines.append("## Notas\n")
+        for n in notes:
+            lines.append(f"- {safe_str(n)}")
+        lines.append("")
+
+    # usedin
+    usedin = ensure_list(obj.get("usedin"))
+    if usedin:
+        lines.append("## Usado em\n")
+        for u in usedin:
+            lines.append(f"- {safe_str(u)}")
+        lines.append("")
+
+    # references
+    refs = ensure_list(obj.get("references"))
+    if refs:
+        lines.append("## Referências\n")
+        for r in refs:
+            if isinstance(r, dict):
+                title = r.get("title") or r.get("name") or "referência"
+                url = r.get("url") or ""
+                lines.append(f"- {md_link(title, url)}")
+            else:
+                lines.append(f"- {safe_str(r)}")
+        lines.append("")
+
+
     return "\n".join(lines).strip() + "\n"
 
 
@@ -177,6 +223,50 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
     module_md = [f"# {mod_id} — {mod_name}\n\n"]
     if owner:
         module_md.append(f"**Owner:** `{owner}`\n\n")
+
+        # --- module metadata (show all relevant fields) ---
+    # simple fields
+    for k in ("created_by", "updated_by", "updated_at", "status"):
+        v = mod.get(k)
+        if v:
+            module_md.append(f"- **{k}:** `{safe_str(v)}`\n")
+    if any(mod.get(k) for k in ("created_by", "updated_by", "updated_at", "status")):
+        module_md.append("\n")
+
+    # description
+    if mod.get("description"):
+        module_md.append("## Descrição\n\n")
+        module_md.append(safe_str(mod.get("description")).strip() + "\n\n")
+
+    # notes
+    notes = ensure_list(mod.get("notes"))
+    if notes:
+        module_md.append("## Notas\n\n")
+        for n in notes:
+            module_md.append(f"- {safe_str(n)}\n")
+        module_md.append("\n")
+
+    # usedin
+    usedin = ensure_list(mod.get("usedin"))
+    if usedin:
+        module_md.append("## Usado em\n\n")
+        for u in usedin:
+            module_md.append(f"- {safe_str(u)}\n")
+        module_md.append("\n")
+
+    # references (list of {title,url} or strings)
+    refs = ensure_list(mod.get("references"))
+    if refs:
+        module_md.append("## Referências\n\n")
+        for r in refs:
+            if isinstance(r, dict):
+                title = r.get("title") or r.get("name") or "referência"
+                url = r.get("url") or ""
+                module_md.append(f"- {md_link(title, url)}\n")
+            else:
+                module_md.append(f"- {safe_str(r)}\n")
+        module_md.append("\n")
+
 
     module_md.append("## Telas\n\n")
     if screens:
@@ -226,11 +316,17 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
         
         lines: List[str] = []
         lines.append(f"# {sid} — {s.get('name', sid)}\n")
+        lines.append(f"[Maiores detalhes](./details/)\n")
 
         purpose = s.get("purpose")
         if purpose:
             lines.append("## Objetivo\n")
             lines.append(safe_str(purpose).strip() + "\n")
+        
+        desc = s.get("description")
+        if desc:
+            lines.append("## Descrição\n")
+            lines.append(safe_str(desc).strip() + "\n")
 
         # Metadados (auto)
         meta = s.get("meta") or {}
@@ -279,8 +375,6 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
                 comp_header = f"### {cid} — {cname}"
                 if ctype:
                     comp_header += f"  \n**Tipo:** `{ctype}`"
-                if c_test_id:
-                    comp_header += f"  \n**Implementação (test_id):** `{c_test_id}`"
                 lines.append(comp_header + "\n")
 
                 reqs_comp = ensure_list(c.get("requirements"))
@@ -295,8 +389,13 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
                     rname = rq.get("name") or rq.get("title") or rid
 
                     # Link requirement to module requirement page
+                    rdesc = rq.get("description") or ""
                     req_href = f"../../requirements/{rid}/" if rid else ""
-                    lines.append(f"- **Requisito:** {md_id_link(rid, req_href)} — {rname}")
+                    line = f"- **Requisito:** {md_id_link(rid, req_href)} — {rname}"
+                    if rdesc:
+                        line += f"  \n  {safe_str(rdesc).strip()}"
+                    lines.append(line)
+
 
                     # acceptance criteria (optional inline)
                     ac = ensure_list(rq.get("acceptance_criteria"))
@@ -313,14 +412,15 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
                                 continue
                             nid = rn.get("id", "")
                             nname = rn.get("name") or rn.get("title") or nid
-                            rn_href = f"../../rules/{nid}/" if nid else ""
-                            expr = rn.get("expression")
-                            if expr:
-                                lines.append(f"    - {md_id_link(nid, rn_href)} — {nname}  \n      `expressão:` `{safe_str(expr)}`")
-                            else:
-                                lines.append(f"    - {md_id_link(nid, rn_href)} — {nname}")
+                            ndesc = rn.get("description") or ""
+                            rn_href = f"../../rules/{nid}/" if nid else ""   # <-- correção do path
+                            rline = f"    - {md_id_link(nid, rn_href)} — {nname}"
+                            if ndesc:
+                                rline += f"  \n      {safe_str(ndesc).strip()}"
+                            lines.append(rline)
                     else:
                         lines.append("  - **Regras:** _(nenhuma)_")
+
 
                 lines.append("")  # spacing between components
 
