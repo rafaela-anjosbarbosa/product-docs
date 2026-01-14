@@ -396,13 +396,6 @@ def render_module_pages(system: str, module_slug: str, module_data: Dict[str, An
                         line += f"  \n  {safe_str(rdesc).strip()}"
                     lines.append(line)
 
-
-                    # acceptance criteria (optional inline)
-                    ac = ensure_list(rq.get("acceptance_criteria"))
-                    if ac:
-                        for ccc in ac:
-                            lines.append(f"  - _Aceite:_ {safe_str(ccc)}")
-
                     # rules under requirement
                     rules_req = ensure_list(rq.get("rules"))
                     if rules_req:
